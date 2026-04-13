@@ -1,7 +1,7 @@
 import { auth, db, storage } from "./firebase-config.js";
 import { t } from "./i18n.js";
 import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
-import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
+import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
 // Слухач стану (щоб знати роль при виведенні постів)
@@ -40,11 +40,27 @@ createPostBtn.addEventListener('click', async () => {
 
     try {
         if (file) {
-            createPostBtn.innerText = "Завантажую медіа (будь ласка, зачекайте)...";
             let type = file.type.split('/')[0]; 
             const fileRef = ref(storage, `posts/${Date.now()}_${file.name}`);
-            const snapshot = await uploadBytes(fileRef, file);
-            mediaUrl = await getDownloadURL(snapshot.ref);
+            
+            // Використовуємо uploadBytesResumable для відображення відсотків
+            const uploadTask = uploadBytesResumable(fileRef, file);
+            
+            await new Promise((resolve, reject) => {
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        createPostBtn.innerText = `Завантаження медіа: ${Math.round(progress)}%`;
+                    }, 
+                    (error) => {
+                        reject(error);
+                    }, 
+                    async () => {
+                        mediaUrl = await getDownloadURL(uploadTask.snapshot.ref);
+                        resolve();
+                    }
+                );
+            });
             mediaType = type;
         }
 
@@ -89,7 +105,7 @@ function createPostElement(id, data, isSingle) {
     postEl.innerHTML = `
         <div class="post-header" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>
             <div class="avatar" style="background-image: linear-gradient(135deg, var(--primary-blue), #5ac8fa)"></div>
-            <div class="author-name">Nexus <span style="color:var(--primary-blue); font-size:12px;">(Admin)</span></div>
+            <div class="author-name">Nexus</div>
         </div>
         <div class="post-content" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>${data.text || ''}</div>
         ${mediaHtml}
