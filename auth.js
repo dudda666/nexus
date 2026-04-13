@@ -83,11 +83,20 @@ profileSaveBtn.addEventListener('click', async () => {
     try {
         let avatarUrl = currentUserData?.avatarUrl || "";
 
-        // Якщо вибрано новий файл
+        // Якщо вибрано новий файл (аватарка)
         if (newAvatarFile) {
-            const avatarRef = ref(storage, `avatars/${auth.currentUser.uid}`);
-            const sn = await uploadBytes(avatarRef, newAvatarFile);
-            avatarUrl = await getDownloadURL(sn.ref);
+            const formData = new FormData();
+            formData.append('file', newAvatarFile);
+            formData.append('upload_preset', 'nexus_post');
+
+            const res = await fetch('https://api.cloudinary.com/v1_1/dng0kwbln/image/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) throw new Error("Помилка завантаження аватарки на Cloudinary");
+            const data = await res.json();
+            avatarUrl = data.secure_url;
         }
 
         // Оновлюємо в Firestore
@@ -159,6 +168,8 @@ onAuthStateChanged(auth, async (user) => {
                 currentUserData = userDoc.data();
                 if(currentUserData.role === 'admin') {
                     if(adminPanel) adminPanel.classList.remove('hidden');
+                } else {
+                    if(adminPanel) adminPanel.classList.add('hidden');
                 }
             } else {
                 // Відновлення, якщо документа юзера немає, але він зареєстрований
@@ -168,6 +179,7 @@ onAuthStateChanged(auth, async (user) => {
                     avatarUrl: ""
                 });
                 currentUserData = { nickname: "Guest", role: "user", avatarUrl: "" };
+                if(adminPanel) adminPanel.classList.add('hidden');
             }
         } catch(e) {
              console.log("No access to user collection or error", e);

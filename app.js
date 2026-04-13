@@ -43,35 +43,51 @@ createPostBtn.addEventListener('click', async () => {
 
     if (!text && !file) return;
 
+    if (window.currentUserRole !== 'admin') {
+        alert("Тільки головний адміністратор може публікувати пости!");
+        return;
+    }
+
     createPostBtn.innerText = t("loading");
     createPostBtn.disabled = true;
 
     try {
         if (file) {
             let type = file.type.split('/')[0]; 
-            const fileRef = ref(storage, `posts/${Date.now()}_${file.name}`);
             
-            // Використовуємо uploadBytesResumable для відображення відсотків
-            const uploadTask = uploadBytesResumable(fileRef, file);
-            
-            // Налаштовуємо слухача прогресу (але не блокуємо ним потік)
-            uploadTask.on('state_changed', (snapshot) => {
-                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                createPostBtn.innerText = `Завантаження медіа: ${Math.round(progress)}%`;
+            await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                // Використовуємо auto щоб Cloudinary сам визначив відео/фото чи аудіо
+                xhr.open('POST', 'https://api.cloudinary.com/v1_1/dng0kwbln/auto/upload', true);
+                
+                xhr.upload.onprogress = (e) => {
+                    if (e.lengthComputable) {
+                        const progress = (e.loaded / e.total) * 100;
+                        createPostBtn.innerText = `Завантаження медіа: ${Math.round(progress)}%`;
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status === 200) {
+                        const response = JSON.parse(xhr.responseText);
+                        mediaUrl = response.secure_url;
+                        resolve();
+                    } else {
+                        console.error("Cloudinary Error:", xhr.responseText);
+                        reject(new Error("Помилка завантаження на сервер Cloudinary"));
+                    }
+                };
+
+                xhr.onerror = () => {
+                    reject(new Error("Помилка мережі (інтернету) під час завантаження"));
+                };
+
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('upload_preset', 'nexus_post');
+
+                xhr.send(formData);
             });
-            
-            // Чекаємо завершення та ловимо помилки, якщо будуть
-            try {
-                await uploadTask;
-                mediaUrl = await getDownloadURL(fileRef);
-            } catch (err) {
-                console.error("Upload error:", err);
-                alert("Не вдалося завантажити медіа. Перевір інтернет-з'єднання або розмір файлу.");
-                createPostBtn.innerText = "Створити пост";
-                createPostBtn.disabled = false;
-                return;
-            }
-            
             mediaType = type;
         }
 
