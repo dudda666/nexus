@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="uk" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Nexus</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Use CDN for icons (e.g. FontAwesome or Ionicons) -->
+  <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <h1 data-i18n="app_title">Nexus</h1>
+    </div>
+    <div class="header-controls">
+      <select id="lang-select" class="lang-selector">
+        <option value="uk">UA</option>
+        <option value="en">EN</option>
+      </select>
+      <button class="icon-btn" id="theme-toggle"><i class="ion-ios-moon"></i></button>
+      <button id="auth-btn" data-i18n="login_btn">Увійти</button>
+      <button class="hidden" id="profile-btn" data-i18n="profile_btn">Профіль</button>
+      <button class="hidden icon-btn" id="logout-btn"><i class="ion-ios-log-out"></i></button>
+    </div>
+  </header>
+
+  <!-- Hero Landing Section (iOS Style Presentation) -->
+  <section class="hero-section">
+    <div class="hero-content">
+      <h1 class="hero-title" data-i18n="hero_title">Ласкаво просимо до Nexus</h1>
+      <p class="hero-subtitle" data-i18n="hero_subtitle">Ексклюзивний контент, думки та медіа. Долучайся до нашої спільноти.</p>
+    </div>
+  </section>
+
+  <!-- Main Feed Container -->
+  <main id="feed-container">
+    
+    <!-- Admin Creation Panel (Hidden by default) -->
+    <div id="admin-panel" class="admin-panel hidden">
+      <h2 data-i18n="create_post_title">Створити Пост</h2>
+      <textarea id="post-text" data-i18n="post_placeholder" placeholder="Що нового на Nexus?" rows="3"></textarea>
+      <input type="file" class="file-input" id="post-media" accept="image/*,video/mp4,audio/mp3">
+      <button id="create-post-btn" data-i18n="publish_btn">Опублікувати</button>
+    </div>
+
+    <!-- Posts will be injected here -->
+    <div id="posts">
+      <!-- Loader or Welcome Message -->
+      <div style="text-align: center; margin-top: 50px; opacity: 0.5;" data-i18n="loading">Завантаження...</div>
+    </div>
+  </main>
+
+  <!-- Auth Modal -->
+  <div id="auth-modal" class="modal hidden">
+    <div class="modal-content">
+      <h2 id="auth-title" data-i18n="auth_login_title">Вхід</h2>
+      <input type="email" id="auth-email" data-i18n="email_placeholder" placeholder="Електронна пошта">
+      <input type="password" id="auth-password" data-i18n="pass_placeholder" placeholder="Пароль">
+      <input type="text" id="auth-nick" class="hidden" data-i18n="nick_placeholder" placeholder="Нікнейм (тільки реєстрація)">
+      
+      <button id="auth-submit" data-i18n="submit_login">Увійти</button>
+      <p style="margin-top: 15px; text-align: center; cursor: pointer; color: var(--primary-blue);" id="auth-switch" data-i18n="switch_to_reg">Або зареєструватися</p>
+      <button class="icon-btn" id="close-modal" style="position: absolute; top: 15px; right: 15px;"><i class="ion-ios-close-empty"></i></button>
+    </div>
+  </div>
+
+  <!-- Profile Modal -->
+  <div id="profile-modal" class="modal hidden">
+    <div class="modal-content" style="text-align: center;">
+      <h2 data-i18n="profile_title">Мій Профіль</h2>
+      
+      <div id="profile-avatar-preview" class="avatar" style="width:100px; height:100px; margin: 20px auto; font-size:40px; line-height:100px; background-color: var(--primary-blue); color: white;">?</div>
+      
+      <label class="action-btn" style="justify-content:center; margin-bottom: 20px; cursor: pointer; color: var(--primary-blue);">
+        <i class="ion-ios-camera-outline" style="font-size:24px;"></i>
+        <span data-i18n="avatar_upload">Завантажити Аватарку</span>
+        <input type="file" id="profile-avatar-input" accept="image/*" class="hidden">
+      </label>
+
+      <input type="text" id="profile-nick" data-i18n="nick_placeholder" placeholder="Нікнейм">
+      
+      <button id="profile-save-btn" data-i18n="save_btn" style="width:100%;">Зберегти</button>
+      <button class="icon-btn" id="close-profile-modal" style="position: absolute; top: 15px; right: 15px;"><i class="ion-ios-close-empty"></i></button>
+    </div>
+  </div>
+
+  <!-- Firebase Scripts (v9 Modular SDK via CDN for vanilla JS) -->
+  <script type="module" src="js/firebase-config.js"></script>
+  <script type="module" src="js/auth.js"></script>
+  <script type="module" src="js/app.js"></script>
+  <script type="module" src="js/i18n.js"></script>
+  <script src="js/theme.js"></script>
+
+</body>
+</html>
