@@ -46,6 +46,15 @@
       <button id="create-post-btn" data-i18n="publish_btn">Опублікувати</button>
     </div>
 
+    <!-- Загальний контейнер Назад та Профіль Юзера -->
+    <div id="navigation-bar" style="display:none; padding: 10px 20px; align-items: center; justify-content: flex-start; margin-bottom: 5px;">
+        <button class="action-btn" onclick="window.location.href='index.html'" style="background: rgba(255,255,255,0.1); border-radius: 20px; padding: 8px 18px; border: none; color: var(--text-color); cursor:pointer;"><i class="ion-ios-arrow-back" style="margin-right: 5px;"></i> Назад</button>
+    </div>
+
+    <div id="user-profile-view" class="hidden" style="margin: 0 20px 20px; padding: 25px; background: rgba(255,255,255,0.05); border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+         <!-- Injected by JS -->
+    </div>
+
     <!-- Posts will be injected here -->
     <div id="posts">
       <!-- Loader or Welcome Message -->
@@ -81,6 +90,7 @@
       </label>
 
       <input type="text" id="profile-nick" data-i18n="nick_placeholder" placeholder="Нікнейм">
+      <textarea id="profile-bio" placeholder="Опис профілю (до 150 символів)..." maxlength="150" rows="3" style="width: 100%; border-radius: 12px; padding: 12px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); font-family: inherit; font-size: 14px; resize: none;"></textarea>
       
       <button id="profile-save-btn" data-i18n="save_btn" style="width:100%;">Зберегти</button>
       <button class="icon-btn" id="close-profile-modal" style="position: absolute; top: 15px; right: 15px;"><i class="ion-ios-close-empty"></i></button>

@@ -22,6 +22,7 @@ const adminPanel = document.getElementById('admin-panel');
 const profileModal = document.getElementById('profile-modal');
 const closeProfileBtn = document.getElementById('close-profile-modal');
 const profileNick = document.getElementById('profile-nick');
+const profileBio = document.getElementById('profile-bio');
 const profileAvatarInput = document.getElementById('profile-avatar-input');
 const profileAvatarPreview = document.getElementById('profile-avatar-preview');
 const profileSaveBtn = document.getElementById('profile-save-btn');
@@ -44,6 +45,7 @@ profileBtn.addEventListener('click', async () => {
     profileModal.classList.remove('hidden');
     if (currentUserData) {
         profileNick.value = currentUserData.nickname || "";
+        profileBio.value = currentUserData.bio || "";
         if (currentUserData.avatarUrl) {
             profileAvatarPreview.style.backgroundImage = `url(${currentUserData.avatarUrl})`;
             profileAvatarPreview.innerHTML = "";
@@ -103,11 +105,13 @@ profileSaveBtn.addEventListener('click', async () => {
         const userRef = doc(db, "users", auth.currentUser.uid);
         await updateDoc(userRef, {
             nickname: profileNick.value,
+            bio: profileBio.value,
             avatarUrl: avatarUrl
         });
 
         // Оновлюємо локальну змінну
         currentUserData.nickname = profileNick.value;
+        currentUserData.bio = profileBio.value;
         currentUserData.avatarUrl = avatarUrl;
         
         profileModal.classList.add('hidden');
