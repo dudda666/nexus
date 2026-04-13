@@ -1,21 +1,29 @@
 import { auth, db, storage } from "./firebase-config.js";
 import { t } from "./i18n.js";
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, deleteDoc, increment, arrayUnion, arrayRemove } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
-// Слухач стану (щоб знати роль при виведенні постів)
+// Слухач стану (щоб знати роль та дані профілю при виведенні постів)
 window.currentUserRole = "guest";
+window.currentUserName = "Користувач";
+window.currentUserAvatar = "";
+
 onAuthStateChanged(auth, async (user) => {
     if(user) {
         const userDoc = await getDoc(doc(db, "users", user.uid));
-        if(userDoc.exists() && userDoc.data().role === 'admin') {
-            window.currentUserRole = 'admin';
+        if(userDoc.exists()) {
+            const data = userDoc.data();
+            window.currentUserRole = data.role === 'admin' ? 'admin' : 'user';
+            window.currentUserName = data.nickname || "Користувач";
+            window.currentUserAvatar = data.avatarUrl || "";
         } else {
             window.currentUserRole = 'user';
         }
     } else {
         window.currentUserRole = 'guest';
+        window.currentUserName = "Користувач";
+        window.currentUserAvatar = "";
     }
     loadAppContent(); // Перерендерити стрічку з новими правами
 });
@@ -100,6 +108,36 @@ function createPostElement(id, data, isSingle) {
         <button class="action-btn" onclick="deletePost('${id}')" style="color: red;"><i class="ion-ios-trash-outline"></i> Видалити</button>
     ` : '';
 
+    // Перевірка, чи лайкнув поточний юзер (якщо у даних поста є масив likedBy)
+    const hasLiked = auth.currentUser && data.likedBy && data.likedBy.includes(auth.currentUser.uid);
+    const heartIcon = hasLiked ? 'ion-ios-heart' : 'ion-ios-heart-outline';
+    const heartStyle = hasLiked ? 'color: #ff3b30;' : '';
+
+    // Блок коментарів
+    const commentsList = (data.comments || []).map(c => `
+        <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 12px; font-size: 14px; display: flex; align-items: center; gap: 10px;">
+            <div style="width: 25px; height: 25px; min-width: 25px; border-radius: 50%; background-image: ${c.avatar ? `url('${c.avatar}')` : 'linear-gradient(135deg, var(--primary-blue), #5ac8fa)'}; background-size: cover; background-position: center;"></div>
+            <div style="line-height: 1.3;">
+                <span style="font-weight: bold; color: var(--primary-blue);">${c.name}:</span>
+                <span style="color: var(--text-color);">${c.text}</span>
+            </div>
+        </div>
+    `).join('');
+
+    const commentsSection = `
+        <div id="comments-container-${id}" style="display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
+            <div id="comments-list-${id}" style="max-height: 200px; overflow-y: auto; margin-bottom: 10px;">
+                ${commentsList || '<div style="font-size:13px; color:var(--text-secondary); text-align:center; padding: 10px 0;">Ще немає коментарів. Напишіть щось!</div>'}
+            </div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <input type="text" id="comment-input-${id}" placeholder="${t('comment')}..." style="flex:1; padding: 10px 15px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); outline: none;">
+                <button class="action-btn" onclick="submitComment('${id}')" style="background: var(--primary-blue); border: none; padding: 8px 18px; border-radius: 20px; color: #fff; font-weight: bold; cursor: pointer;">
+                    Відправити
+                </button>
+            </div>
+        </div>
+    `;
+
     const postEl = document.createElement('div');
     postEl.className = 'post';
     postEl.innerHTML = `
@@ -110,13 +148,14 @@ function createPostElement(id, data, isSingle) {
         <div class="post-content" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>${data.text || ''}</div>
         ${mediaHtml}
         <div class="post-actions" style="flex-wrap: wrap;">
-            <button class="action-btn" onclick="handleLike('${id}')">
-                <i class="ion-ios-heart-outline"></i> <span id="like-count-${id}">${data.likes || 0}</span>
+            <button class="action-btn" id="like-btn-${id}" onclick="handleLike('${id}')" style="${heartStyle}">
+                <i class="${heartIcon}"></i> <span id="like-count-${id}">${data.likes || 0}</span>
             </button>
-            <button class="action-btn" onclick="handleComment('${id}')"><i class="ion-ios-chatbubble-outline"></i> ${t("comment")}</button>
+            <button class="action-btn" onclick="handleComment('${id}')"><i class="ion-ios-chatbubble-outline"></i> <span id="comment-count-${id}">${(data.comments || []).length || t("comment")}</span></button>
             <button class="action-btn share-btn" data-id="${id}"><i class="ion-ios-upload-outline"></i> ${t("share")}</button>
             ${adminActions}
         </div>
+        ${commentsSection}
     `;
     return postEl;
 }
@@ -127,9 +166,30 @@ window.handleLike = async function(id) {
         document.getElementById('auth-modal').classList.remove('hidden');
         return;
     }
-    const currentLikes = parseInt(document.getElementById(`like-count-${id}`).innerText) || 0;
-    document.getElementById(`like-count-${id}`).innerText = currentLikes + 1;
-    await updateDoc(doc(db, "posts", id), { likes: increment(1) });
+    const uid = auth.currentUser.uid;
+    const btn = document.getElementById(`like-btn-${id}`);
+    const icon = btn.querySelector('i');
+    const countSpan = document.getElementById(`like-count-${id}`);
+    
+    if (icon.classList.contains('ion-ios-heart')) {
+        // Забираємо лайк
+        icon.classList.replace('ion-ios-heart', 'ion-ios-heart-outline');
+        btn.style.color = '';
+        countSpan.innerText = Math.max(0, parseInt(countSpan.innerText) - 1);
+        await updateDoc(doc(db, "posts", id), { 
+            likes: increment(-1), 
+            likedBy: arrayRemove(uid) 
+        });
+    } else {
+        // Ставимо лайк
+        icon.classList.replace('ion-ios-heart-outline', 'ion-ios-heart');
+        btn.style.color = '#ff3b30'; // Червоне серденько
+        countSpan.innerText = parseInt(countSpan.innerText || 0) + 1;
+        await updateDoc(doc(db, "posts", id), { 
+            likes: increment(1), 
+            likedBy: arrayUnion(uid) 
+        });
+    }
 };
 
 window.handleComment = function(id) {
@@ -137,7 +197,55 @@ window.handleComment = function(id) {
         document.getElementById('auth-modal').classList.remove('hidden');
         return;
     }
-    alert("Коментарі будуть додані в наступному оновленні! Але ти вже можеш лайкати.");
+    // Відкриваємо/закриваємо секцію коментарів під постом
+    const container = document.getElementById(`comments-container-${id}`);
+    container.style.display = container.style.display === 'none' ? 'block' : 'none';
+};
+
+window.submitComment = async function(id) {
+    if (!auth.currentUser) return;
+    const input = document.getElementById(`comment-input-${id}`);
+    const text = input.value.trim();
+    if (!text) return;
+    
+    input.disabled = true; // Блокуємо від спаму
+    
+    const newComment = {
+        uid: auth.currentUser.uid,
+        name: window.currentUserName || "Користувач",
+        avatar: window.currentUserAvatar || "",
+        text: text,
+        timestamp: new Date().toISOString()
+    };
+    
+    await updateDoc(doc(db, "posts", id), {
+        comments: arrayUnion(newComment)
+    });
+    
+    // Оновлюємо UI миттєво
+    input.value = '';
+    input.disabled = false;
+    
+    const list = document.getElementById(`comments-list-${id}`);
+    const commentHtml = \`
+        <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 12px; font-size: 14px; display: flex; align-items: center; gap: 10px;">
+            <div style="width: 25px; height: 25px; min-width: 25px; border-radius: 50%; background-image: \${newComment.avatar ? \`url('\${newComment.avatar}')\` : 'linear-gradient(135deg, var(--primary-blue), #5ac8fa)'}; background-size: cover; background-position: center;"></div>
+            <div style="line-height: 1.3;">
+                <span style="font-weight: bold; color: var(--primary-blue);">\${newComment.name}:</span>
+                <span style="color: var(--text-color);">\${newComment.text}</span>
+            </div>
+        </div>
+    \`;
+    
+    if (list.innerHTML.includes("Ще немає коментарів")) {
+        list.innerHTML = commentHtml;
+    } else {
+        list.insertAdjacentHTML('beforeend', commentHtml);
+    }
+    
+    const countSpan = document.getElementById(\`comment-count-\${id}\`);
+    const currCount = parseInt(countSpan.innerText) || 0;
+    countSpan.innerText = currCount + 1;
 };
 
 window.addFakeLikes = async function(id) {
