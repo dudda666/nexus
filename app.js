@@ -5,6 +5,7 @@ import { ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.c
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 
 // Слухач стану (щоб знати роль та дані профілю при виведенні постів)
+window.t = t;
 window.currentUserRole = "guest";
 window.currentUserName = "Користувач";
 window.currentUserAvatar = "";
@@ -14,14 +15,17 @@ onAuthStateChanged(auth, async (user) => {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if(userDoc.exists()) {
             const data = userDoc.data();
-            window.currentUserRole = data.role === 'admin' ? 'admin' : 'user';
+            window.t = t;
+window.currentUserRole = data.role === 'admin' ? 'admin' : 'user';
             window.currentUserName = data.nickname || "Користувач";
             window.currentUserAvatar = data.avatarUrl || "";
         } else {
-            window.currentUserRole = 'user';
+            window.t = t;
+window.currentUserRole = 'user';
         }
     } else {
-        window.currentUserRole = 'guest';
+        window.t = t;
+window.currentUserRole = 'guest';
         window.currentUserName = "Користувач";
         window.currentUserAvatar = "";
     }
@@ -115,10 +119,32 @@ createPostBtn.addEventListener('click', async () => {
 
 function createPostElement(id, data, isSingle) {
     let mediaHtml = '';
-    if(data.mediaUrl) {
-        if(data.mediaType === 'image') mediaHtml = `<img src="${data.mediaUrl}" class="post-media" alt="post info">`;
-        if(data.mediaType === 'video') mediaHtml = `<video src="${data.mediaUrl}" class="post-media" controls playsinline></video>`;
-        if(data.mediaType === 'audio') mediaHtml = `<audio src="${data.mediaUrl}" style="width:100%; margin-bottom:15px;" controls></audio>`;
+    const allMedia = data.media ? [...data.media] : [];
+    // Fallback for old posts
+    if (!data.media && data.mediaUrl) {
+        allMedia.push({ url: data.mediaUrl, type: data.mediaType });
+    }
+
+    if (allMedia.length > 0) {
+        mediaHtml += '<div style="margin-bottom: 15px; display:flex; flex-direction:column; gap:5px;">';
+        allMedia.forEach(m => {
+            let mHtml = '';
+            const isNsfw = !!data.isNsfw;
+            const extraStyle = isNsfw ? 'filter: blur(25px); transition: filter 0.3s;' : '';
+            const clickHnd = isNsfw ? `onclick="window.handleNsfwMedia(this, '${id}')"` : '';
+            const overlayIcon = isNsfw ? `<div class="nsfw-overlay" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); pointer-events:none; background:rgba(0,0,0,0.6); padding:5px 15px; border-radius:20px; color:#fff; font-weight:bold; font-size:14px;"><i class="ion-ios-eye-off"></i> 18+</div>` : '';
+
+            if (m.type === 'image' || m.type.startsWith('image')) {
+                mHtml = `<div style="position:relative; width: 100%;"><img src="${m.url}" class="post-media" alt="post info" style="${extraStyle}" ${clickHnd}>${overlayIcon}</div>`;
+            } else if (m.type === 'video' || m.type.startsWith('video')) {
+                // For videos, don't show controls initially if blurred to avoid weird UI behavior
+                mHtml = `<div style="position:relative; width:100%;"><video src="${m.url}" style="width: 100%; border-radius: 12px; margin-bottom: 0; background: #000; ${extraStyle}" ${clickHnd} ${!isNsfw ? 'controls' : ''}></video>${overlayIcon}</div>`;
+            } else if (m.type === 'audio' || m.type.startsWith('audio')) {
+                mHtml = `<audio src="${m.url}" style="width:100%; margin-bottom:0;" controls></audio>`;
+            }
+            mediaHtml += mHtml;
+        });
+        mediaHtml += '</div>';
     }
 
     const isAdmin = (window.currentUserRole === 'admin');
@@ -173,7 +199,10 @@ function createPostElement(id, data, isSingle) {
 
     const postEl = document.createElement('div');
     postEl.className = 'post';
-    const authorNameStr = data.authorName || 'Nexus';
+    let authorNameStr = data.authorName || 'Nexus';
+    if(data.isAutoPost || data.authorName === "Nexus News Bot" || data.authorName === "Nexus Bot") {
+        authorNameStr = t('ai_assistant') || 'Nexus AI';
+    }
     const authorAvatarStr = data.authorAvatar ? `url('${data.authorAvatar}')` : 'linear-gradient(135deg, var(--primary-blue), #5ac8fa)';
     const profileLinkStyle = data.uid ? `cursor:pointer;" onclick="window.location.href='?user=${data.uid}'"` : '';
 
@@ -182,7 +211,11 @@ function createPostElement(id, data, isSingle) {
             <div class="avatar" style="background-image: ${authorAvatarStr}; ${profileLinkStyle}"></div>
             <div class="author-name" style="${profileLinkStyle}">${authorNameStr}</div>
         </div>
-        <div class="post-content" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>${data.text || ''}</div>
+        <div class="post-content" id="post-text-${id}" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>${data.text || ''}</div>
+        <div style="margin: 5px 0 10px; display: flex; justify-content: space-between; align-items: center; opacity: 0.8;">
+            <span style="font-size: 11px; background: rgba(255,255,255,0.1); padding: 3px 8px; border-radius: 12px; font-weight: bold; color: var(--primary-color);">${data.category || 'FYP'}</span>
+            <button onclick="translatePost('${id}')" style="background: none; border: none; font-size: 13px; color: var(--text-secondary); cursor: pointer;"><i class="ion-ios-globe"></i> Переклад</button>
+        </div>
         ${mediaHtml}
         <div class="post-actions" style="flex-wrap: wrap;">
             <button class="action-btn" id="like-btn-${id}" onclick="handleLike('${id}')" style="${heartStyle}">
@@ -197,7 +230,31 @@ function createPostElement(id, data, isSingle) {
     return postEl;
 }
 
+
 // === Глобальні функції для онкліків ===
+window.handleNsfwMedia = function(el, id) {
+    if (!auth.currentUser) {
+        sessionStorage.setItem('redirectAfterAuth', '?post=' + id);
+        alert(t('nsfw_login'));
+        document.getElementById('auth-modal').classList.remove('hidden');
+        return;
+    }
+    
+    if (confirm(t('nsfw_warning'))) {
+        el.style.filter = 'none';
+        el.removeAttribute('onclick'); // remove handler so it can be clicked normally (e.g. video play)
+        
+        // if video, add controls back
+        if (el.tagName === 'VIDEO') {
+            el.setAttribute('controls', 'true');
+        }
+        
+        // Remove overlay label
+        const overlay = el.parentElement.querySelector('.nsfw-overlay');
+        if(overlay) overlay.style.display = 'none';
+    }
+};
+
 window.handleLike = async function(id) {
     if (!auth.currentUser) {
         document.getElementById('auth-modal').classList.remove('hidden');
@@ -292,6 +349,7 @@ window.submitComment = async function(id) {
 };
 
 window.addFakeLikes = async function(id) {
+    if (window.currentUserRole !== 'admin') { alert('Тільки адміністратор може це робити!'); return; }
     let count = prompt("Скільки лайків ти хочеш накрутити цьому посту?", "50");
     if (count && !isNaN(count)) {
         let num = Number(count);
@@ -302,6 +360,7 @@ window.addFakeLikes = async function(id) {
 };
 
 window.deletePost = async function(id) {
+    if (window.currentUserRole !== 'admin') { alert('Тільки адміністратор може це робити!'); return; }
     if (confirm("Ти впевнений, що хочеш видалити цей пост назавжди?")) {
         await deleteDoc(doc(db, "posts", id));
         loadAppContent(); // Оновити стрічку
@@ -333,6 +392,17 @@ async function loadAppContent() {
     if (userId) {
         // РЕЖИМ: ПРОФІЛЬ ЮЗЕРА
         try {
+            if (userId === "bot_nexus") {
+                if(userView) {
+                    userView.classList.remove('hidden');
+                    userView.innerHTML = `<div style="width: 100px; height: 100px; border-radius: 50%; background-image: url('ai%20bot%20foto.jpeg'); background-size: cover; background-position: center; margin: 0 auto 15px;"></div>
+                        <h2 style="margin: 0; color: var(--text-color);">${t('ai_assistant') || 'AI помічник NEXUS'}</h2>
+                        <p style="color: var(--text-secondary); margin-top: 10px; font-size: 15px; max-width: 400px; margin-left: auto; margin-right: auto; font-style: italic;">Цей користувач сховав свій профіль.</p>`;
+                }
+                postsContainer.innerHTML = '<div style="text-align: center; color: var(--text-secondary); margin-top:20px; font-style: italic;">Доступ закрито</div>';
+                return;
+            }
+
             const userDoc = await getDoc(doc(db, "users", userId));
             if (userDoc.exists()) {
                 const uData = userDoc.data();
@@ -380,6 +450,7 @@ async function loadAppContent() {
             
             if (docSnap.exists()) {
                 postsContainer.appendChild(createPostElement(docSnap.id, docSnap.data(), true));
+                if(window.autoTranslateAllPosts) window.autoTranslateAllPosts();
             } else {
                 postsContainer.innerHTML += `<div style="text-align: center; margin-top: 50px; opacity: 0.5;">Post Not Found</div>`;
             }
@@ -397,14 +468,19 @@ async function loadAppContent() {
             const q = query(collection(db, "posts"), orderBy("timestamp", "desc"));
             const querySnapshot = await getDocs(q);
             
-            if (querySnapshot.empty) {
+            window.allLoadedPosts = [];
+            querySnapshot.forEach(docSnap => {
+                let d = docSnap.data();
+                d.id = docSnap.id;
+                window.allLoadedPosts.push(d);
+            });
+            
+            if (window.allLoadedPosts.length === 0) {
                  postsContainer.innerHTML = `<div style="text-align: center; margin-top: 50px; opacity: 0.5;">${t("no_posts")}</div>`;
                  return;
             }
 
-            querySnapshot.forEach((docSnap) => {
-                postsContainer.appendChild(createPostElement(docSnap.id, docSnap.data(), false));
-            });
+            window.renderCachedPosts();
         } catch(e) {
             postsContainer.innerHTML = '<div style="text-align: center; margin-top: 50px; opacity: 0.5; color: red;">Error loading posts</div>';
             console.error(e);
@@ -422,6 +498,7 @@ async function loadAppContent() {
         });
     });
 }
+
 
 function showToast(msg) {
     let toast = document.getElementById('toast');
@@ -465,6 +542,7 @@ window.likeComment = async function(postId, commentId) {
 };
 
 window.addFakeComments = async function(id) {
+    if (window.currentUserRole !== 'admin') { alert('Тільки адміністратор може це робити!'); return; }
     const lang = prompt("На якій мові коментарі (ua / en)?", "ua") || "ua";
     const countStr = prompt("Скільки коментарів накрутити?", "3");
     const count = parseInt(countStr);
@@ -516,4 +594,369 @@ window.addFakeComments = async function(id) {
     
     await updateDoc(postRef, { comments: comments });
     loadAppContent(); // Перерендерити
+};
+
+// --- Живий генератор постів ---
+let generatorInterval = null;
+const genBtn = document.getElementById('toggle-generator-btn');
+const genLog = document.getElementById('generator-log');
+
+const topics = [
+    {text: "⚽️ Спорт: Мадридський Реал розгромив суперників у фіналі Ліги Чемпіонів. Емоції просто зашкалюють після вирішального голу на 89-й хвилині!", cat: "sport"},
+    {text: "🏎 Формула 1: Макс Ферстаппен здобуває неймовірну перемогу на гран-прі Монако. Безумовний лідер!", cat: "sport"},
+    {text: "🥊 Бокс: Олександр Усик вкотре підтверджує своє звання найкращого у світі, неймовірний бій!", cat: "sport"},
+    {text: "🏀 Баскетбол: Фінал NBA перевершив усі очікування, боротьба до останньої секунди.", cat: "sport"},
+    
+    {text: "🌐 Новини: Ілон Маск заявив, що Neuralink успішно вживив новий чіп людині.", cat: "news"},
+    {text: "🌍 Екологія: Глобальне потепління б'є рекорди. Вчені розробляють нові методи очищення океанів.", cat: "news"},
+    {text: "🚀 Космос: NASA успішно запустила нову місію на Марс для пошуку слідів життя.", cat: "news"},
+    
+    {text: "📱 Технології: Apple представила нові окуляри змішаної реальності, які перевертають уявлення про роботу.", cat: "it"},
+    {text: "💻 IT: Штучний інтелект замінює програмістів? Новий звіт показує шокуючі результати.", cat: "it"},
+    {text: "🤖 AI: OpenAI випустила нову модель, яка вміє створювати фільми зі звичайного тексту.", cat: "it"},
+    {text: "🔒 Кібербезпека: Велика корпорація знову зазнала хакерської атаки, мільйони даних злиті.", cat: "it"},
+    
+    {text: "🎮 Ігри: GTA 6 нарешті отримала офіційний трейлер. Графіка виглядає просто феноменально!", cat: "games"},
+    {text: "👾 Кіберспорт: Українська команда NaVi перемогла на турнірі з CS2 і забрала головний приз.", cat: "games"},
+    {text: "🕹 Релізи: Новий хіт в Steam побив рекорди онлайну за перші 24 години.", cat: "games"},
+    
+    {text: "🏛 Політика: Новий законопроект викликав бурхливі дискусії в парламенті. Які будуть наслідки?", cat: "politics"},
+    {text: "⚖️ Вибори: Неочікувані результати екзит-полів змінюють політичний ландшафт країни.", cat: "politics"},
+    {text: "🤝 Дипломатія: Важливий міжнародний саміт завершився підписанням історичної угоди.", cat: "politics"},
+    
+    {text: "📈 Тренди: Новий мем у TikTok збирає мільйони переглядів щодня. Усі намагаються повторити цей танець!", cat: "trends"},
+    {text: "🔥 Соцмережі: Відомий блогер встановив новий світовий рекорд лайків на одному відео.", cat: "trends"},
+    {text: "🎥 YouTube: Алгоритми знову змінилися, і контент-мейкери шукають нові формати.", cat: "trends"}
+];
+
+let generatorRunning = false;
+
+if (genBtn) {
+    genBtn.addEventListener('click', () => {
+        if (!generatorRunning) {
+            startGenerator();
+            genBtn.innerText = "⏸ Зупинити Авто-Постер";
+            genBtn.style.color = "#ff3b30";
+            genLog.style.display = 'block';
+        } else {
+            stopGenerator();
+            genBtn.innerText = "▶ Запустити Авто-Постер";
+            genBtn.style.color = "var(--text-color)";
+        }
+    });
+}
+
+function startGenerator() {
+    generatorRunning = true;
+    logGenerator("🚀 Генератор запущено. Пости будуть публікуватися кожні 5 сек...");
+    
+    // Публікуємо перший відразу
+    generatePost();
+    
+    generatorInterval = setInterval(() => {
+        generatePost();
+    }, 5000);
+}
+
+function stopGenerator() {
+    generatorRunning = false;
+    clearInterval(generatorInterval);
+    logGenerator("🛑 Генератор зупинено.");
+}
+
+function logGenerator(msg) {
+    if(!genLog) return;
+    const time = new Date().toLocaleTimeString();
+    genLog.innerHTML += `<div>[${time}] ${msg}</div>`;
+    genLog.scrollTop = genLog.scrollHeight;
+}
+
+async function generatePost() {
+    if(!auth.currentUser) {
+        logGenerator("❌ Помилка: Ви не авторизовані!");
+        stopGenerator();
+        return;
+    }
+    
+    const randomTopic = topics[Math.floor(Math.random() * topics.length)];
+    const randomText = randomTopic.text;
+    const postCategory = randomTopic.cat;
+    
+    logGenerator(`📝 Готуємо пост: "${randomText.substring(0, 20)}..."`);
+    
+    try {
+        const randomLikesCount = Math.floor(Math.random() * 99) + 2; // 2 to 100
+        const botComments = [];
+        
+        const themeComments = {
+            sport: [
+                "Неймовірний результат! ⚽️", "Цей матч увійде в історію!", "Не очікував такого фіналу.", "Легендарна перемога 🏆", "Суддя був жахливий, але гра топ.",
+                "Incredible match! ⚽️", "I can't believe this result!", "Legendary performance 🏆", "Game of the year!", "Unreal skills.",
+                "Incroyable match! ⚽️", "Quelle finale!", "Victoire historique 🏆", "Fantastique!", "Le meilleur joueur!",
+                "¡Increíble partido! ⚽️", "¡Qué final tan emocionante!", "Victoria histórica 🏆", "¡Fantástico!", "¡El mejor jugador!"
+            ],
+            news: [
+                "Дуже важлива новина.", "Світ так швидко змінюється 🌍", "Куди ми котимось...", "Сподіваюсь, що все буде добре.", "Шокуюче!",
+                "Very important news.", "The world is changing so fast 🌍", "Where are we heading...", "I hope everything will be fine.", "Shocking!",
+                "Nouvelle très importante.", "Le monde change si vite 🌍", "Où allons-nous...", "J'espère que tout ira bien.", "Choquant !",
+                "Noticia muy importante.", "El mundo cambia muy rápido 🌍", "¿Hacia dónde nos dirigimos...", "Espero que todo salga bien.", "¡Sorprendente!"
+            ],
+            it: [
+                "Код стає писати легше 💻", "А як же конфіденційність?", "Я вже хочу протестувати цю нейромережу!", "Ці технології лякають.", "Майбутнє вже настало 🤖",
+                "Coding is getting easier 💻", "What about privacy?", "I want to test this AI now!", "These tech trends are scary.", "The future is here 🤖",
+                "Coder devient plus facile 💻", "Et la vie privée ?", "Je veux tester cette IA !", "Ces technologies font peur.", "Le futur est là 🤖",
+                "Programar es más fácil 💻", "¿Qué pasa con la privacidad?", "¡Quiero probar esta IA!", "Estas tecnologías asustan.", "El futuro ya está aquí 🤖"
+            ],
+            games: [
+                "Готую гроші на покупку 💸", "Графіка просто космос!", "Сподіваюсь, оптимізація теж буде ок.", "Це гра року, 100%.", "GTA 6 зламала інтернет 🎮",
+                "Taking my money 💸", "Graphics are pure madness!", "Hope the optimization is fine.", "GOTY for sure.", "This broke the internet 🎮",
+                "Prenez mon argent 💸", "Les graphismes sont fous !", "J'espère que l'optimisation est bonne.", "GOTY à 100%.", "Ça a cassé internet 🎮",
+                "Toma mi dinero 💸", "¡Los gráficos son locos!", "Espero que la optimización sea buena.", "GOTY seguro.", "Rompió el internet 🎮"
+            ],
+            politics: [
+                "Спірне рішення...", "Побачимо, до чого це призведе 🏛", "Економіка від цього тільки програє.", "Оце так поворот подій!", "Не вірю цим обіцянкам.",
+                "Controversial decision...", "Let's see where this leads 🏛", "The economy will suffer.", "What a plot twist!", "I don't buy these promises.",
+                "Décision controversée...", "Voyons où cela mène 🏛", "L'économie en souffrira.", "Quel rebondissement !", "Je ne crois pas ces promesses.",
+                "Decisión controvertida...", "Veremos a dónde lleva esto 🏛", "La economía sufrirá.", "¡Qué giro de los acontecimientos!", "No creo en estas promesas."
+            ],
+            trends: [
+                "Цей тренд усюди 🔥", "Вже трохи набридло, якщо чесно.", "Зробив таке ж відео і набрав 100к переглядів!", "Інтернет зійшов з розуму 📱", "Обожнюю це!",
+                "This trend is everywhere 🔥", "Kinda tired of it, to be honest.", "Did the same and got 100k views!", "The internet is crazy 📱", "Love this!",
+                "Cette tendance est partout 🔥", "Un peu fatigué de ça.", "J'ai fait une vidéo, 100k vues !", "Internet est fou 📱", "J'adore ça !",
+                "Esta tendencia está en todas partes 🔥", "Un poco cansado de ello.", "¡Hice un video y 100k vistas!", "El internet está loco 📱", "¡Me encanta!"
+            ]
+        };
+        
+        const possibleComments = themeComments[postCategory] || themeComments['news'];
+        const numComments = Math.floor(Math.random() * 99) + 2; // 2 to 100 comments
+        for(let i=0; i<numComments; i++){
+            botComments.push({
+                uid: "botuser_" + Math.random().toString(36).substring(7),
+                author: "Користувач_" + Math.floor(Math.random() * 1000),
+                avatar: "",
+                text: possibleComments[Math.floor(Math.random() * possibleComments.length)],
+                likes: [],
+                timestamp: new Date().toISOString()
+            });
+        }
+        
+        await addDoc(collection(db, "posts"), {
+            text: randomText,
+            category: postCategory,
+            mediaUrl: null,
+            mediaType: null,
+            uid: "bot_nexus",
+            authorName: "AI помічник NEXUS",
+            isAutoPost: true,
+            authorAvatar: "ai%20bot%20foto.jpeg",
+            timestamp: serverTimestamp(),
+            likes: randomLikesCount,
+            comments: botComments
+        });
+        logGenerator('✅ Пост опубліковано успішно!');
+        loadAppContent(); // Оновлюємо стрічку
+    } catch(err) {
+        logGenerator(`❌ Помилка: ${err.message}`);
+    }
+}
+
+
+
+// --- TIKTOK FYP & CATEGORY SYSTEM ---
+window.currentCategory = 'all';
+let userLikesHistory;
+try {
+    userLikesHistory = JSON.parse(localStorage.getItem('user_likes_history') || '{"sport":0, "news":0, "it":0, "games":0}');
+} catch(e) {
+    userLikesHistory = {"sport":0, "news":0, "it":0, "games":0};
+    localStorage.setItem('user_likes_history', JSON.stringify(userLikesHistory));
+}
+
+window.setCategory = function(cat, btnElement) {
+    window.currentCategory = cat;
+    document.querySelectorAll('.category-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.category-btn').forEach(btn => btn.style.background = 'rgba(255,255,255,0.1)');
+    document.querySelectorAll('.category-btn').forEach(btn => btn.style.border = 'none');
+    
+    if(btnElement) {
+        btnElement.classList.add('active');
+        btnElement.style.background = 'var(--primary-color)';
+    }
+    window.renderCachedPosts();
+};
+
+document.querySelectorAll('.category-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => window.setCategory(e.target.dataset.cat, e.target));
+});
+
+function recordLikeForAlgorithm(postData) {
+    if(postData && postData.category) {
+        userLikesHistory[postData.category] = (userLikesHistory[postData.category] || 0) + 1;
+        localStorage.setItem('user_likes_history', JSON.stringify(userLikesHistory));
+    }
+}
+
+// Hook into like
+const originalHandleLike = window.handleLike;
+window.handleLike = async function(id) {
+    const post = window.allLoadedPosts?.find(p => p.id === id);
+    if(post) recordLikeForAlgorithm(post);
+    originalHandleLike(id);
+};
+
+// --- AUTOCOMPLETE FILTER ---
+const searchInputEl = document.getElementById('search-input');
+const autocompleteBox = document.getElementById('search-autocomplete');
+
+if(searchInputEl && autocompleteBox) {
+    searchInputEl.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('post') || urlParams.get('user')) {
+             window.location.href = '/?search=' + encodeURIComponent(query);
+             return;
+        }
+        if(!query) {
+            autocompleteBox.style.display = 'none';
+            window.renderCachedPosts();
+            return;
+        }
+        
+        const suggestions = (window.allLoadedPosts || []).filter(p => p.text.toLowerCase().includes(query)).slice(0, 5);
+        
+        if(suggestions.length > 0) {
+            autocompleteBox.innerHTML = suggestions.map(s => 
+                `<div style="padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.05); cursor: pointer;" onclick="document.getElementById('search-input').value='\${s.text.replace(/'/g, "\'")}\'; document.getElementById('search-autocomplete').style.display='none'; window.renderCachedPosts();">${s.text.substring(0, 60)}...</div>`
+            ).join('');
+            autocompleteBox.style.display = 'block';
+        } else {
+            autocompleteBox.style.display = 'none';
+        }
+        
+        window.renderCachedPosts();
+    });
+
+    document.addEventListener('click', (e) => {
+        if(e.target !== searchInputEl && e.target !== autocompleteBox) {
+            autocompleteBox.style.display = 'none';
+        }
+    });
+}
+
+// --- TRANSLATOR LOGIC ---
+window.translatePost = function(postId) {
+    const postTextEl = document.getElementById('post-text-' + postId);
+    if(!postTextEl) return;
+    
+    const currentText = postTextEl.innerText;
+    let targetLang = (window.currentLang);
+    if(targetLang && targetLang.includes('-')) targetLang = targetLang.split('-')[0]; // from i18n if available
+    if(!targetLang) targetLang = document.getElementById('lang-select') ? document.getElementById('lang-select').value : 'en';
+
+    postTextEl.innerText = "⏳ Переклад... (Translating...)";
+
+    const url = `https://api.mymemory.translated.net/get?q=\${encodeURIComponent(currentText)}\&langpair=uk|\${targetLang}`;
+    
+    fetch(url)
+        .then(res => res.json())
+        .then(data => {
+            if(data && data.responseData && data.responseData.translatedText) {
+                postTextEl.innerText = data.responseData.translatedText;
+            } else {
+                postTextEl.innerText = currentText; // fallback
+                alert("Translation failed");
+            }
+        }).catch(err => {
+            console.error(err);
+            postTextEl.innerText = currentText;
+        });
+};
+
+
+window.renderCachedPosts = function() {
+    if(!window.allLoadedPosts) return;
+    const postsContainer = document.getElementById('posts');
+    if(!postsContainer) return;
+    
+    // FILTER BY SEARCH
+    const searchEl = document.getElementById('search-input');
+    const searchTerm = searchEl ? searchEl.value.toLowerCase().trim() : '';
+
+    // FILTER BY CATEGORY
+    let filtered = window.allLoadedPosts;
+    if(window.currentCategory && window.currentCategory !== 'all') {
+        filtered = filtered.filter(p => p.category === window.currentCategory);
+    }
+    if(searchTerm) {
+        filtered = filtered.filter(p => (p.text || '').toLowerCase().includes(searchTerm) || (p.authorName || '').toLowerCase().includes(searchTerm));
+    }
+
+    // FYP SORT LOGIC
+    if(window.currentCategory === 'all') {
+        let history;
+        try {
+            history = JSON.parse(localStorage.getItem('user_likes_history') || '{"sport":0, "news":0, "it":0, "games":0}');
+        } catch(e) {
+            history = {"sport":0, "news":0, "it":0, "games":0};
+        }
+        filtered.sort((a, b) => {
+            const aCatScore = history[a.category] || 0;
+            const bCatScore = history[b.category] || 0;
+            const aTime = a.timestamp?.seconds || 0;
+            const bTime = b.timestamp?.seconds || 0;
+            const aScore = aCatScore * 1000000 + aTime;
+            const bScore = bCatScore * 1000000 + bTime;
+            return bScore - aScore;
+        });
+    }
+
+    postsContainer.innerHTML = '';
+    if (filtered.length === 0) {
+         postsContainer.innerHTML = `<div style="text-align: center; margin-top: 50px; opacity: 0.5;">${window.currentLang==='en'?'No results':(window.currentLang==='uk'?'Немає результатів':'No posts')}</div>`;
+    } else {
+         filtered.forEach((postData) => {
+             postsContainer.appendChild(createPostElement(postData.id, postData, false));
+         });
+    }
+    
+    // Trigger auto-translation for non-UA users
+    if(window.autoTranslateAllPosts) window.autoTranslateAllPosts();
+};
+
+window.renderCachedPosts();
+
+// AUTOTRANSLATION LOGIC
+window.autoTranslateAllPosts = async function() {
+    let targetLang = (window.getLang ? window.getLang() : (window.currentLang || (document.getElementById('lang-select') ? document.getElementById('lang-select').value : 'uk')));
+    if(targetLang && targetLang.includes('-')) targetLang = targetLang.split('-')[0];
+    
+    // We only auto-translate if the user's language is NOT Ukrainian, because the base dynamic posts are all in UA.
+    if(targetLang === 'uk' || targetLang === 'ru') return;
+
+    // Give it a tiny delay to not freeze the UI
+    setTimeout(() => {
+        const posts = document.querySelectorAll('.post-content');
+        posts.forEach(el => {
+            if(el.dataset.translated === "true") return;
+            const currentText = el.innerText;
+            if(!currentText || currentText.trim().length === 0) return;
+            
+            // Basic detection: if the text already contains common letters of the target language, or is short, we could skip it.
+            // But let's just translate it if it's new.
+            el.dataset.translated = "true";
+            const originalHtml = el.innerHTML;
+            
+            fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(currentText)}&langpair=uk|${targetLang}`)
+                .then(res => res.json())
+                .then(data => {
+                    if(data && data.responseData && data.responseData.translatedText) {
+                        el.innerText = data.responseData.translatedText;
+                        el.style.borderLeft = "2px solid var(--primary-color)";
+                        el.style.paddingLeft = "8px";
+                    }
+                }).catch(err => {
+                    console.error("Auto-translate error:", err);
+                });
+        });
+    }, 500);
 };

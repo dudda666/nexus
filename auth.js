@@ -4,7 +4,9 @@ import {
   createUserWithEmailAndPassword, 
   signInWithEmailAndPassword, 
   onAuthStateChanged,
-  signOut
+  signOut,
+  GoogleAuthProvider,
+  signInWithPopup
 } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
 import { doc, setDoc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
@@ -158,6 +160,30 @@ submitBtn.addEventListener('click', async () => {
     }
 });
 
+const googleBtn = document.getElementById('auth-google-btn');
+if (googleBtn) {
+    googleBtn.addEventListener('click', async () => {
+        const provider = new GoogleAuthProvider();
+        try {
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+            // Check if user already exists
+            const userDoc = await getDoc(doc(db, "users", user.uid));
+            if (!userDoc.exists()) {
+                await setDoc(doc(db, "users", user.uid), {
+                    nickname: user.displayName || "Google User",
+                    role: "user",
+                    avatarUrl: user.photoURL || ""
+                });
+            }
+            authModal.classList.add('hidden');
+        } catch (error) {
+            console.error(error);
+            alert("Помилка авторизації Google: " + error.message);
+        }
+    });
+}
+
 logoutBtn.addEventListener('click', () => signOut(auth));
 
 onAuthStateChanged(auth, async (user) => {
@@ -188,6 +214,13 @@ onAuthStateChanged(auth, async (user) => {
         } catch(e) {
              console.log("No access to user collection or error", e);
         }
+        
+        // Redirect if came from an NSFW wall or shared link
+        const redirectStr = sessionStorage.getItem('redirectAfterAuth');
+        if (redirectStr) {
+            sessionStorage.removeItem('redirectAfterAuth');
+            window.location.href = redirectStr;
+        }
     } else {
         authBtn.classList.remove('hidden');
         profileBtn.classList.add('hidden');
@@ -196,3 +229,17 @@ onAuthStateChanged(auth, async (user) => {
         currentUserData = null;
     }
 });
+
+
+const profileLogoutBtn = document.getElementById('profile-logout-btn');
+if (profileLogoutBtn) {
+    profileLogoutBtn.addEventListener('click', async () => {
+        try {
+            await signOut(auth);
+            profileModal.classList.add('hidden');
+            window.location.reload();
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+}
