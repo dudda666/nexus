@@ -1,7 +1,24 @@
 import { auth, db, storage } from "./firebase-config.js";
 import { t } from "./i18n.js";
-import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
+import { collection, addDoc, getDocs, query, orderBy, serverTimestamp, doc, getDoc, updateDoc, deleteDoc, increment } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-firestore.js";
 import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-storage.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.9.0/firebase-auth.js";
+
+// Слухач стану (щоб знати роль при виведенні постів)
+window.currentUserRole = "guest";
+onAuthStateChanged(auth, async (user) => {
+    if(user) {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if(userDoc.exists() && userDoc.data().role === 'admin') {
+            window.currentUserRole = 'admin';
+        } else {
+            window.currentUserRole = 'user';
+        }
+    } else {
+        window.currentUserRole = 'guest';
+    }
+    loadAppContent(); // Перерендерити стрічку з новими правами
+});
 
 const createPostBtn = document.getElementById('create-post-btn');
 const postText = document.getElementById('post-text');
@@ -23,6 +40,7 @@ createPostBtn.addEventListener('click', async () => {
 
     try {
         if (file) {
+            createPostBtn.innerText = "Завантажую медіа (будь ласка, зачекайте)...";
             let type = file.type.split('/')[0]; 
             const fileRef = ref(storage, `posts/${Date.now()}_${file.name}`);
             const snapshot = await uploadBytes(fileRef, file);
@@ -58,6 +76,14 @@ function createPostElement(id, data, isSingle) {
         if(data.mediaType === 'audio') mediaHtml = `<audio src="${data.mediaUrl}" style="width:100%; margin-bottom:15px;" controls></audio>`;
     }
 
+    const isAdmin = (window.currentUserRole === 'admin');
+    
+    // Адмінські кнопки
+    const adminActions = isAdmin ? `
+        <button class="action-btn" onclick="addFakeLikes('${id}')" style="color: var(--primary-blue); font-weight: bold;"><i class="ion-ios-flame"></i> Накрутити</button>
+        <button class="action-btn" onclick="deletePost('${id}')" style="color: red;"><i class="ion-ios-trash-outline"></i> Видалити</button>
+    ` : '';
+
     const postEl = document.createElement('div');
     postEl.className = 'post';
     postEl.innerHTML = `
@@ -67,14 +93,53 @@ function createPostElement(id, data, isSingle) {
         </div>
         <div class="post-content" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>${data.text || ''}</div>
         ${mediaHtml}
-        <div class="post-actions">
-            <button class="action-btn"><i class="ion-ios-heart-outline"></i> ${data.likes || 0}</button>
-            <button class="action-btn" ${!isSingle ? `onclick="window.location.href='?post=${id}'"` : ''}><i class="ion-ios-chatbubble-outline"></i> ${t("comment")}</button>
+        <div class="post-actions" style="flex-wrap: wrap;">
+            <button class="action-btn" onclick="handleLike('${id}')">
+                <i class="ion-ios-heart-outline"></i> <span id="like-count-${id}">${data.likes || 0}</span>
+            </button>
+            <button class="action-btn" onclick="handleComment('${id}')"><i class="ion-ios-chatbubble-outline"></i> ${t("comment")}</button>
             <button class="action-btn share-btn" data-id="${id}"><i class="ion-ios-upload-outline"></i> ${t("share")}</button>
+            ${adminActions}
         </div>
     `;
     return postEl;
 }
+
+// === Глобальні функції для онкліків ===
+window.handleLike = async function(id) {
+    if (!auth.currentUser) {
+        document.getElementById('auth-modal').classList.remove('hidden');
+        return;
+    }
+    const currentLikes = parseInt(document.getElementById(`like-count-${id}`).innerText) || 0;
+    document.getElementById(`like-count-${id}`).innerText = currentLikes + 1;
+    await updateDoc(doc(db, "posts", id), { likes: increment(1) });
+};
+
+window.handleComment = function(id) {
+    if (!auth.currentUser) {
+        document.getElementById('auth-modal').classList.remove('hidden');
+        return;
+    }
+    alert("Коментарі будуть додані в наступному оновленні! Але ти вже можеш лайкати.");
+};
+
+window.addFakeLikes = async function(id) {
+    let count = prompt("Скільки лайків ти хочеш накрутити цьому посту?", "50");
+    if (count && !isNaN(count)) {
+        let num = Number(count);
+        const currentLikes = parseInt(document.getElementById(`like-count-${id}`).innerText) || 0;
+        document.getElementById(`like-count-${id}`).innerText = currentLikes + num;
+        await updateDoc(doc(db, "posts", id), { likes: increment(num) });
+    }
+};
+
+window.deletePost = async function(id) {
+    if (confirm("Ти впевнений, що хочеш видалити цей пост назавжди?")) {
+        await deleteDoc(doc(db, "posts", id));
+        loadAppContent(); // Оновити стрічку
+    }
+};
 
 async function loadAppContent() {
     postsContainer.innerHTML = '';
