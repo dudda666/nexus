@@ -54,21 +54,24 @@ createPostBtn.addEventListener('click', async () => {
             // Використовуємо uploadBytesResumable для відображення відсотків
             const uploadTask = uploadBytesResumable(fileRef, file);
             
-            await new Promise((resolve, reject) => {
-                uploadTask.on('state_changed', 
-                    (snapshot) => {
-                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                        createPostBtn.innerText = `Завантаження медіа: ${Math.round(progress)}%`;
-                    }, 
-                    (error) => {
-                        reject(error);
-                    }, 
-                    async () => {
-                        mediaUrl = await getDownloadURL(uploadTask.snapshot.ref);
-                        resolve();
-                    }
-                );
+            // Налаштовуємо слухача прогресу (але не блокуємо ним потік)
+            uploadTask.on('state_changed', (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                createPostBtn.innerText = `Завантаження медіа: ${Math.round(progress)}%`;
             });
+            
+            // Чекаємо завершення та ловимо помилки, якщо будуть
+            try {
+                await uploadTask;
+                mediaUrl = await getDownloadURL(fileRef);
+            } catch (err) {
+                console.error("Upload error:", err);
+                alert("Не вдалося завантажити медіа. Перевір інтернет-з'єднання або розмір файлу.");
+                createPostBtn.innerText = "Створити пост";
+                createPostBtn.disabled = false;
+                return;
+            }
+            
             mediaType = type;
         }
 
@@ -227,15 +230,15 @@ window.submitComment = async function(id) {
     input.disabled = false;
     
     const list = document.getElementById(`comments-list-${id}`);
-    const commentHtml = \`
+    const commentHtml = `
         <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 12px; font-size: 14px; display: flex; align-items: center; gap: 10px;">
-            <div style="width: 25px; height: 25px; min-width: 25px; border-radius: 50%; background-image: \${newComment.avatar ? \`url('\${newComment.avatar}')\` : 'linear-gradient(135deg, var(--primary-blue), #5ac8fa)'}; background-size: cover; background-position: center;"></div>
+            <div style="width: 25px; height: 25px; min-width: 25px; border-radius: 50%; background-image: ${newComment.avatar ? `url('${newComment.avatar}')` : 'linear-gradient(135deg, var(--primary-blue), #5ac8fa)'}; background-size: cover; background-position: center;"></div>
             <div style="line-height: 1.3;">
-                <span style="font-weight: bold; color: var(--primary-blue);">\${newComment.name}:</span>
-                <span style="color: var(--text-color);">\${newComment.text}</span>
+                <span style="font-weight: bold; color: var(--primary-blue);">${newComment.name}:</span>
+                <span style="color: var(--text-color);">${newComment.text}</span>
             </div>
         </div>
-    \`;
+    `;
     
     if (list.innerHTML.includes("Ще немає коментарів")) {
         list.innerHTML = commentHtml;
@@ -243,7 +246,7 @@ window.submitComment = async function(id) {
         list.insertAdjacentHTML('beforeend', commentHtml);
     }
     
-    const countSpan = document.getElementById(\`comment-count-\${id}\`);
+    const countSpan = document.getElementById(`comment-count-${id}`);
     const currCount = parseInt(countSpan.innerText) || 0;
     countSpan.innerText = currCount + 1;
 };
