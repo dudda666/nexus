@@ -47,12 +47,12 @@
       <h2 data-i18n="create_post_title">Створити Пост</h2>
       <textarea id="post-text" data-i18n="post_placeholder" placeholder="Що нового на Nexus?" rows="3"></textarea>
       <select id="post-category" style="width:100%; padding:10px; margin-bottom:15px; border-radius:10px; background:rgba(255,255,255,0.05); color:var(--text-color); border:1px solid rgba(255,255,255,0.1);">
-           <option value="none">Категорія (Для Вас)</option>
-           <option value="news">📰 Новини</option>
-           <option value="sport">⚽️ Спорт</option>
-           <option value="it">💻 IT & Технології</option>
-           <option value="games">🎮 Ігри</option>
-           <option value="crypto">💰 Крипто</option>
+           <option value="none" data-i18n="category_for_you">Категорія (Для Вас)</option>
+           <option value="news" data-i18n="category_news">📰 Новини</option>
+           <option value="sport" data-i18n="category_sport">⚽️ Спорт</option>
+           <option value="it" data-i18n="category_it">💻 IT & Технології</option>
+           <option value="games" data-i18n="category_games">🎮 Ігри</option>
+           <option value="crypto" data-i18n="category_crypto">💰 Крипто</option>
       </select>
       <input type="file" class="file-input" id="post-media" accept="image/*,video/mp4,audio/mp3" multiple>
       <div style="margin-bottom: 20px; display:flex; align-items:center; gap:8px;">
@@ -62,18 +62,18 @@
       <button id="create-post-btn" data-i18n="publish_btn">Опублікувати</button>
       
       <div style="margin-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px;">
-        <h3 style="margin-bottom: 10px; font-size: 16px; color: var(--primary-blue);">Живий генератор постів 🤖</h3>
-        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">Автоматично публікує випадкові новини від вашого імені кожні 30 секунд. Захоплює спорт, кіберспорт, світ!</p>
-        <button id="toggle-generator-btn" style="background: rgba(255,255,255,0.1); color: var(--text-color);">▶ Запустити Авто-Постер</button>
+        <h3 style="margin-bottom: 10px; font-size: 16px; color: var(--primary-blue);" data-i18n="generator_title">Живий генератор постів 🤖</h3>
+        <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;" data-i18n="generator_desc">Автоматично публікує випадкові новини від вашого імені кожні 30 секунд. Захоплює спорт, кіберспорт, світ!</p>
+        <button id="toggle-generator-btn" style="background: rgba(255,255,255,0.1); color: var(--text-color);">▶ <span data-i18n="auto_poster_start">Запустити Авто-Постер</span></button>
         <div id="generator-log" style="display:none; margin-top: 10px; font-family: monospace; font-size: 11px; color: #4cd964; text-align: left; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px; max-height: 100px; overflow-y: auto;">
-          [Очікування запуску...]
+          <span data-i18n="generator_waiting">[Очікування запуску...]</span>
         </div>
       </div>
     </div>
 
     <!-- Загальний контейнер Назад та Профіль Юзера -->
     <div id="navigation-bar" style="display:none; padding: 10px 20px; align-items: center; justify-content: flex-start; margin-bottom: 5px;">
-        <button class="action-btn" onclick="window.location.href='index.html'" style="background: rgba(255,255,255,0.1); border-radius: 20px; padding: 8px 18px; border: none; color: var(--text-color); cursor:pointer;"><i class="ion-ios-arrow-back" style="margin-right: 5px;"></i> Назад</button>
+        <button class="action-btn" onclick="window.location.href='index.html'" style="background: rgba(255,255,255,0.1); border-radius: 20px; padding: 8px 18px; border: none; color: var(--text-color); cursor:pointer;"><i class="ion-ios-arrow-back" style="margin-right: 5px;"></i> <span data-i18n="back">Назад</span></button>
     </div>
 
     <div id="user-profile-view" class="hidden" style="margin: 0 20px 20px; padding: 25px; background: rgba(255,255,255,0.05); border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
@@ -112,10 +112,10 @@
       <input type="text" id="auth-nick" class="hidden" data-i18n="nick_placeholder" placeholder="Нікнейм (тільки реєстрація)">
       
       <button id="auth-submit" data-i18n="submit_login">Увійти</button>
-      <div style="text-align: center; margin: 15px 0;">або</div>
+      <div style="text-align: center; margin: 15px 0;" data-i18n="or_divider">або</div>
       <button id="auth-google-btn" style="background: white; color: black; display: flex; align-items: center; justify-content: center; gap: 10px;">
         <i class="ion-social-google" style="color: #DB4437; font-size: 20px;"></i>
-        Увійти через Google
+        <span data-i18n="login_google">Увійти через Google</span>
       </button>
 
       <p style="margin-top: 15px; text-align: center; cursor: pointer; color: var(--primary-blue);" id="auth-switch" data-i18n="switch_to_reg">Створити акаунт</p>
@@ -137,7 +137,7 @@
       </label>
 
       <input type="text" id="profile-nick" data-i18n="nick_placeholder" placeholder="Нікнейм">
-      <textarea id="profile-bio" placeholder="Опис профілю (до 150 символів)..." maxlength="150" rows="3" style="width: 100%; border-radius: 12px; padding: 12px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); font-family: inherit; font-size: 14px; resize: none;"></textarea>
+      <textarea id="profile-bio" data-i18n="profile_bio" placeholder="Опис профілю (до 150 символів)..." maxlength="150" rows="3" style="width: 100%; border-radius: 12px; padding: 12px; margin-bottom: 20px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text-color); font-family: inherit; font-size: 14px; resize: none;"></textarea>
       
       
       <button id="profile-save-btn" data-i18n="save_btn" style="width:100%; margin-bottom: 10px;">Зберегти</button>

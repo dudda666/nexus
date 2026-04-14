@@ -48,7 +48,7 @@ createPostBtn.addEventListener('click', async () => {
     if (!text && files.length === 0) return;
 
     if (window.currentUserRole !== 'admin') {
-        alert("Тільки головний адміністратор може публікувати пости!");
+        alert(t('error_not_admin') || "Only main admin can post");
         return;
     }
 
@@ -157,9 +157,9 @@ function createPostElement(id, data, isSingle) {
     
     // Адмінські кнопки
     const adminActions = isAdmin ? `
-        <button class="action-btn" onclick="addFakeLikes('${id}')" style="color: var(--primary-blue); font-weight: bold;"><i class="ion-ios-flame"></i> Лайки</button>
-        <button class="action-btn" onclick="addFakeComments('${id}')" style="color: var(--primary-blue); font-weight: bold;"><i class="ion-ios-chatbubbles"></i> Коменти</button>
-        <button class="action-btn" onclick="deletePost('${id}')" style="color: red;"><i class="ion-ios-trash-outline"></i> Видалити</button>
+        <button class="action-btn" onclick="addFakeLikes('${id}')" style="color: var(--primary-blue); font-weight: bold;" data-i18n="admin_likes"><i class="ion-ios-flame"></i> ${t("admin_likes")}</button>
+        <button class="action-btn" onclick="addFakeComments('${id}')" style="color: var(--primary-blue); font-weight: bold;" data-i18n="admin_comments"><i class="ion-ios-chatbubbles"></i> ${t("admin_comments")}</button>
+        <button class="action-btn" onclick="deletePost('${id}')" style="color: red;" data-i18n="admin_delete"><i class="ion-ios-trash-outline"></i> ${t("admin_delete")}</button>
     ` : '';
 
     // Перевірка, чи лайкнув поточний юзер (якщо у даних поста є масив likedBy)
@@ -216,7 +216,7 @@ function createPostElement(id, data, isSingle) {
             <div class="author-name" style="${profileLinkStyle}">${authorNameStr}</div>
         </div>
         <div class="post-content" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>${data.text || ''}</div>
-        ${data.readMoreLink ? `<div style="margin-top: 10px; margin-bottom: 15px;"><a href="${data.readMoreLink}" target="_blank" style="padding: 8px 16px; background-color: var(--primary-blue); color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold; display: inline-block;">Читати повністю <i class="ion-ios-arrow-forward" style="margin-left: 5px;"></i></a></div>` : ''}
+        ${data.readMoreLink ? `<div style="margin-top: 10px; margin-bottom: 15px;"><a href="${data.readMoreLink}" target="_blank" style="padding: 8px 16px; background-color: var(--primary-blue); color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold; display: inline-block;" data-i18n="read_more">${t("read_more")}</a></div>` : ''}
         ${mediaHtml}
         <div class="post-actions" style="flex-wrap: wrap;">
             <button class="action-btn" id="like-btn-${id}" onclick="handleLike('${id}')" style="${heartStyle}">
@@ -356,8 +356,8 @@ window.submitComment = async function(id) {
 };
 
 window.addFakeLikes = async function(id) {
-    if (window.currentUserRole !== 'admin') { alert('Тільки адміністратор може це робити!'); return; }
-    let count = prompt("Скільки лайків ти хочеш накрутити цьому посту?", "50");
+    if (window.currentUserRole !== 'admin') { alert('Тільки адміністратор може це робити!' /* not localized yet but it's admin only */); return; }
+    let count = prompt("Скільки лайків ти хочеш накрутити цьому посту?", "50") /* admin stuff */;
     if (count && !isNaN(count)) {
         let num = Number(count);
         const currentLikes = parseInt(document.getElementById(`like-count-${id}`).innerText) || 0;
@@ -785,10 +785,10 @@ async function startAutoPoster() {
     window.autoPosterEnabled = localStorage.getItem('autoPosterEnabled') === 'true';
     
     if(window.autoPosterEnabled && btn) {
-        btn.innerHTML = '⏹ Зупинити Авто-Постер';
+        btn.innerHTML = `⏹ <span data-i18n="auto_poster_stop">${t("auto_poster_stop")}</span>`;
         btn.style.color = '#ff3b30';
         if(logBox) logBox.style.display = 'block';
-        logToGenerator('Автоматичне відновлення автопостера після оновлення...');
+        logToGenerator(t('log_auto_restore'));
         generateRandomPost();
     }
     
@@ -798,15 +798,15 @@ async function startAutoPoster() {
             localStorage.setItem('autoPosterEnabled', window.autoPosterEnabled);
             
             if(window.autoPosterEnabled) {
-                btn.innerHTML = '⏹ Зупинити Авто-Постер';
+                btn.innerHTML = `⏹ <span data-i18n="auto_poster_stop">${t("auto_poster_stop")}</span>`;
                 btn.style.color = '#ff3b30';
                 if(logBox) logBox.style.display = 'block';
-                logToGenerator('Автопостер запущено! Шукаю свіжі новини...');
+                logToGenerator(t('log_auto_started'));
                 generateRandomPost();
             } else {
-                btn.innerHTML = '▶ Запустити Авто-Постер';
+                btn.innerHTML = `▶ <span data-i18n="auto_poster_start">${t("auto_poster_start")}</span>`;
                 btn.style.color = 'var(--text-color)';
-                logToGenerator('Автопостер зупинено.');
+                logToGenerator(t('log_auto_stopped'));
                 if(window.generatorTimeout) clearTimeout(window.generatorTimeout);
             }
         });
@@ -829,7 +829,7 @@ async function generateRandomPost() {
     ];
     
     const source = feedSources[Math.floor(Math.random() * feedSources.length)];
-    logToGenerator(`Шукаю нове: ${source.name}...`);
+    logToGenerator(`${t('log_searching')} ${source.name}...`);
     
     let articleFound = false;
     let fallbackDelay = 10000;
@@ -892,7 +892,7 @@ async function generateRandomPost() {
                     articleTitle = articleTitle.split('-').slice(0, -1).join('-').trim() || articleTitle;
                 }
                 
-                logToGenerator(`Знайдено: "${articleTitle.substring(0, 20)}..."`);
+                logToGenerator(`${t('log_found')} "${articleTitle.substring(0, 20)}..."`);
                 
                 // Google Translate EN -> UA
                 const tRes = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=uk&dt=t&q=${encodeURIComponent(articleTitle)}`);
@@ -958,13 +958,13 @@ async function generateRandomPost() {
                 if(history.length > 500) history.splice(0, 200);
                 localStorage.setItem('botPostedHistory', JSON.stringify(history));
                 
-                logToGenerator(`✅ Опубліковано! Наступний пост...`);
+                logToGenerator(t('log_published'));
             } else {
-                logToGenerator(`(Всі новини "${source.name}" вже є)`);
+                logToGenerator(t('log_all_exist'));
             }
         }
     } catch(e) {
-        logToGenerator(`API Помилка, пауза...`);
+        logToGenerator(t('log_error'));
         fallbackDelay = 15000;
     }
     
