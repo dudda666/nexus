@@ -35,7 +35,7 @@
   <section class="hero-section">
     <div class="hero-content">
       <h1 class="hero-title" data-i18n="hero_title">Ласкаво просимо до Nexus</h1>
-      <p class="hero-subtitle" data-i18n="hero_subtitle">Ексклюзивний контент, думки та медіа. Долучайся до нашої спільноти.</p>
+      <p class="hero-subtitle" data-i18n="hero_subtitle">Nexus – це ваша платформа для актуальних short новин, думок та медіа.</p>
     </div>
   </section>
 
@@ -46,6 +46,14 @@
     <div id="admin-panel" class="admin-panel hidden">
       <h2 data-i18n="create_post_title">Створити Пост</h2>
       <textarea id="post-text" data-i18n="post_placeholder" placeholder="Що нового на Nexus?" rows="3"></textarea>
+      <select id="post-category" style="width:100%; padding:10px; margin-bottom:15px; border-radius:10px; background:rgba(255,255,255,0.05); color:var(--text-color); border:1px solid rgba(255,255,255,0.1);">
+           <option value="none">Категорія (Для Вас)</option>
+           <option value="news">📰 Новини</option>
+           <option value="sport">⚽️ Спорт</option>
+           <option value="it">💻 IT & Технології</option>
+           <option value="games">🎮 Ігри</option>
+           <option value="crypto">💰 Крипто</option>
+      </select>
       <input type="file" class="file-input" id="post-media" accept="image/*,video/mp4,audio/mp3" multiple>
       <div style="margin-bottom: 20px; display:flex; align-items:center; gap:8px;">
          <input type="checkbox" id="post-nsfw" style="width:18px; height:18px;">
@@ -85,6 +93,7 @@
         <button class="category-btn" data-cat="sport" style="padding: 5px 15px; border-radius: 15px; background: rgba(255,255,255,0.1); color: var(--text-color); border: none; cursor: pointer; white-space: nowrap;"><span data-i18n="cat_sport">⚽️ Спорт</span></button>
         <button class="category-btn" data-cat="it" style="padding: 5px 15px; border-radius: 15px; background: rgba(255,255,255,0.1); color: var(--text-color); border: none; cursor: pointer; white-space: nowrap;"><span data-i18n="cat_it">💻 IT & Технології</span></button>
         <button class="category-btn" data-cat="games" style="padding: 5px 15px; border-radius: 15px; background: rgba(255,255,255,0.1); color: var(--text-color); border: none; cursor: pointer; white-space: nowrap;"><span data-i18n="cat_games">🎮 Ігри</span></button>
+        <button class="category-btn" data-cat="crypto" style="padding: 5px 15px; border-radius: 15px; background: rgba(255,255,255,0.1); color: var(--text-color); border: none; cursor: pointer; white-space: nowrap;"><span data-i18n="cat_crypto">💰 Крипто</span></button>
     </div>
 
     <!-- Posts will be injected here -->
