@@ -1014,7 +1014,7 @@ async function generateRandomPost() {
             }
         }
     } catch(e) {
-        logToGenerator(t('log_error'));
+        logToGenerator(t('log_error')); console.error('AUTO-POSTER ERROR:', e);
         fallbackDelay = 15000;
     }
     
