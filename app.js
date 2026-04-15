@@ -215,7 +215,11 @@ function createPostElement(id, data, isSingle) {
             <div class="avatar" style="background-image: ${authorAvatarStr}; ${profileLinkStyle}"></div>
             <div class="author-name" style="${profileLinkStyle}">${authorNameStr}</div>
         </div>
-        <div class="post-content" ${!isSingle ? `style="cursor:pointer;" onclick="window.location.href='?post=${id}'"` : ''}>${data.text || ''}</div>
+        
+        ${!isSingle ? `<a href="?post=${id}" style="display:block; text-decoration:none; color:inherit;" class="post-content-link">` : ''}
+        <div class="post-content" ${!isSingle ? 'style="cursor:pointer;"' : ''}>${data.text || ''}</div>
+        ${!isSingle ? `</a>` : ''}
+    
         ${data.readMoreLink ? `<div style="margin-top: 10px; margin-bottom: 15px;"><a href="${data.readMoreLink}" target="_blank" style="padding: 8px 16px; background-color: var(--primary-blue); color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: bold; display: inline-block;" data-i18n="read_more">${t("read_more")}</a></div>` : ''}
         ${mediaHtml}
         <div class="post-actions" style="flex-wrap: wrap;">
@@ -457,7 +461,20 @@ async function loadAppContent() {
             const docSnap = await getDoc(docRef);
             
             if (docSnap.exists()) {
-                postsContainer.appendChild(createPostElement(docSnap.id, docSnap.data(), true));
+                const pData = docSnap.data();
+                postsContainer.appendChild(createPostElement(docSnap.id, pData, true));
+                
+                // SEO Metadata Update
+                const plainText = (pData.text || '').replace(/<[^>]*>?/gm, '').substring(0, 150);
+                document.title = plainText ? `Nexus | ${plainText}...` : 'Nexus | Post';
+                let metaDesc = document.querySelector('meta[name="description"]');
+                let ogTitle = document.querySelector('meta[property="og:title"]');
+                let ogDesc = document.querySelector('meta[property="og:description"]');
+                
+                if (metaDesc) metaDesc.content = plainText;
+                if (ogTitle) ogTitle.content = document.title;
+                if (ogDesc) ogDesc.content = plainText;
+                
                 setTimeout(() => { if(window.autoTranslateAllPosts) window.autoTranslateAllPosts(); }, 200);
             } else {
                 postsContainer.innerHTML += `<div style="text-align: center; margin-top: 50px; opacity: 0.5;">Post Not Found</div>`;
@@ -481,11 +498,28 @@ async function loadAppContent() {
                  return;
             }
 
+            let syncedHistory = JSON.parse(localStorage.getItem('botPostedHistory') || '[]');
+            let changedHistory = false;
+
             querySnapshot.forEach((docSnap) => {
                 const docData = docSnap.data();
+                
+                // Синхронізуємо локальну історію бота з базою даних, щоб не дублювати
+                if (docData.originalTitle && !syncedHistory.includes(docData.originalTitle)) {
+                    syncedHistory.push(docData.originalTitle);
+                    changedHistory = true;
+                }
+
                 if (window.currentCategory !== 'all' && docData.category !== window.currentCategory) return;
                 postsContainer.appendChild(createPostElement(docSnap.id, docData, false));
             });
+            
+            if (changedHistory) {
+                // Залишаємо останні 500-1000 записів щоб не забити пам'ять браузера
+                if (syncedHistory.length > 1000) syncedHistory = syncedHistory.slice(-800);
+                localStorage.setItem('botPostedHistory', JSON.stringify(syncedHistory));
+            }
+
             setTimeout(() => { if(window.autoTranslateAllPosts) window.autoTranslateAllPosts(); }, 200);
         } catch(e) {
             postsContainer.innerHTML = '<div style="text-align: center; margin-top: 50px; opacity: 0.5; color: red;">Error loading posts</div>';
@@ -818,14 +852,14 @@ async function generateRandomPost() {
     
     // Джерела: Війни/Конфлікти, Політика, Спорт, Ігри, Світ, Технології
     const feedSources = [
-        { cat: 'news', rss: 'https://news.google.com/rss/search?q=world+war+conflict+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Війни та конфлікти' },
-        { cat: 'politics', rss: 'https://news.google.com/rss/search?q=global+politics+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Політика' },
-        { cat: 'sport', rss: 'https://news.google.com/rss/search?q=sports+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Спорт' },
-        { cat: 'news', rss: 'https://news.google.com/rss/search?q=world+news+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Світ' },
-        { cat: 'it', rss: 'https://news.google.com/rss/search?q=technology+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Технології' },
-        { cat: 'crypto', rss: 'https://news.google.com/rss/search?q=cryptocurrency+OR+bitcoin+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Криптовалюта' },
-        { cat: 'games', rss: 'https://news.google.com/rss/search?q=gaming+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Ігри' },
-        { cat: 'trends', rss: 'https://news.google.com/rss/search?q=trending+news+when:1d&hl=en-US&gl=US&ceid=US:en', name: 'Тренди' }
+        { cat: 'news', rss: 'https://news.google.com/rss/search?q=world+war+conflict+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Війни та конфлікти' },
+        { cat: 'politics', rss: 'https://news.google.com/rss/search?q=global+politics+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Політика' },
+        { cat: 'sport', rss: 'https://news.google.com/rss/search?q=sports+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Спорт' },
+        { cat: 'news', rss: 'https://news.google.com/rss/search?q=world+news+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Світ' },
+        { cat: 'it', rss: 'https://news.google.com/rss/search?q=technology+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Технології' },
+        { cat: 'crypto', rss: 'https://news.google.com/rss/search?q=cryptocurrency+OR+bitcoin+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Криптовалюта' },
+        { cat: 'games', rss: 'https://news.google.com/rss/search?q=gaming+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Ігри' },
+        { cat: 'trends', rss: 'https://news.google.com/rss/search?q=trending+news+when:2d&hl=en-US&gl=US&ceid=US:en', name: 'Тренди' }
     ];
     
     const source = feedSources[Math.floor(Math.random() * feedSources.length)];
@@ -844,17 +878,33 @@ async function generateRandomPost() {
             const nowTime = Date.now();
             let article = null;
             
+            // Сортуємо новини: найсвіжіші (сьогоднішні) спочатку, старіші (вчорашні) потім
+            json.items.sort((a, b) => {
+                let timeA = 0, timeB = 0;
+                if(a.pubDate) {
+                    let dA = a.pubDate.replace(/-/g, '/');
+                    if (!dA.includes('Z') && !dA.includes('T')) dA += ' UTC';
+                    timeA = new Date(dA).getTime() || 0;
+                }
+                if(b.pubDate) {
+                    let dB = b.pubDate.replace(/-/g, '/');
+                    if (!dB.includes('Z') && !dB.includes('T')) dB += ' UTC';
+                    timeB = new Date(dB).getTime() || 0;
+                }
+                return timeB - timeA;
+            });
+            
             for (let a of json.items) {
                 const title = a.title.trim();
                 if (history.includes(title)) continue;
                 
-                // Перевіряємо дату публікації (максимум "вчорашня" новина = до 36 годин)
+                // Перевіряємо дату публікації (максимум "вчорашня" новина = до 48 годин)
                 if (a.pubDate) {
                     let dateStr = a.pubDate.replace(/-/g, '/');
                     if (!dateStr.includes('Z') && !dateStr.includes('T')) dateStr += ' UTC'; // rss2json is usually UTC
                     const pubTime = new Date(dateStr).getTime();
                     const diffHours = (nowTime - pubTime) / (1000 * 60 * 60);
-                    if (isNaN(diffHours) || diffHours > 36 || diffHours < -24) { 
+                    if (isNaN(diffHours) || diffHours > 48 || diffHours < -24) { 
                         // Якщо новина застара, додаємо в історію, щоб не обробляти знову
                         if (!history.includes(title)) {
                             history.push(title);

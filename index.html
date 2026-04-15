@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Nexus</title>
+  <meta name="description" content="Nexus – це ваша платформа для актуальних short новин, думок та медіа.">
+  <meta name="robots" content="index, follow">
+  <meta property="og:title" content="Nexus">
+  <meta property="og:description" content="Швидкі новини та тренди.">
+  <meta property="og:type" content="website">
   <link rel="stylesheet" href="style.css">
   <!-- Use CDN for icons (e.g. FontAwesome or Ionicons) -->
   <link rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
@@ -73,7 +78,7 @@
 
     <!-- Загальний контейнер Назад та Профіль Юзера -->
     <div id="navigation-bar" style="display:none; padding: 10px 20px; align-items: center; justify-content: flex-start; margin-bottom: 5px;">
-        <button class="action-btn" onclick="window.location.href='index.html'" style="background: rgba(255,255,255,0.1); border-radius: 20px; padding: 8px 18px; border: none; color: var(--text-color); cursor:pointer;"><i class="ion-ios-arrow-back" style="margin-right: 5px;"></i> <span data-i18n="back">Назад</span></button>
+        <button class="action-btn" onclick="if(document.referrer.includes(window.location.host)) { history.back(); } else { window.location.href='index.html'; }" style="background: rgba(255,255,255,0.1); border-radius: 20px; padding: 8px 18px; border: none; color: var(--text-color); cursor:pointer;"><i class="ion-ios-arrow-back" style="margin-right: 5px;"></i> <span data-i18n="back">Назад</span></button>
     </div>
 
     <div id="user-profile-view" class="hidden" style="margin: 0 20px 20px; padding: 25px; background: rgba(255,255,255,0.05); border-radius: 20px; text-align: center; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
