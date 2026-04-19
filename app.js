@@ -1026,15 +1026,20 @@ async function generateRandomPost() {
     window.generatorTimeout = setTimeout(generateRandomPost, nextDelay);
 }
 
-\n
-// Показати/сховати кнопку "Наверх"
+
+// Показати/сховати кнопку "Наверх" (Тільки при прокрутці ВГОРУ)
+let lastScrollY = window.scrollY;
 window.addEventListener('scroll', () => {
     const scrollBtn = document.getElementById('scrollToTopBtn');
     if (scrollBtn) {
-        if (window.scrollY > 400) {
+        const currentScrollY = window.scrollY;
+        // Показуємо якщо юзер прокрутив вниз більше ніж на 400 і зараз крутить вгору (currentScrollY < lastScrollY)
+        if (currentScrollY < lastScrollY && currentScrollY > 400) {
             scrollBtn.classList.add('show');
         } else {
+            // Ховаємо якщо крутить вниз або якщо вже дуже близько до верху
             scrollBtn.classList.remove('show');
         }
+        lastScrollY = currentScrollY;
     }
 });

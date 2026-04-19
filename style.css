@@ -300,6 +300,7 @@ input:focus, textarea:focus {
 }
 /* Scroll to Top Button */
 .scroll-to-top {
+    z-index: 9999;
     position: fixed;
     bottom: 20px;
     right: 20px;
@@ -331,4 +332,39 @@ input:focus, textarea:focus {
 .scroll-to-top:hover {
     background: #0062cc;
     transform: scale(1.1);
+}
+
+/* Bottom Tab Bar (Categories) */
+body {
+    padding-bottom: 80px; /* Make space for bottom bar */
+}
+
+.bottom-tab-bar {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 90%;
+    max-width: 600px;
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    padding: 12px 20px;
+    background: var(--card-bg);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--card-border);
+    border-radius: 30px;
+    box-shadow: 0 15px 40px rgba(0,0,0,0.25);
+    z-index: 1001;
+    scrollbar-width: none;
+}
+.bottom-tab-bar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Adjust scroll-to-top position so it doesn't overlap tab bar */
+.scroll-to-top {
+    bottom: 95px !important;
+    z-index: 1000 !important;
 }
