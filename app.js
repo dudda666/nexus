@@ -1026,3 +1026,15 @@ async function generateRandomPost() {
     window.generatorTimeout = setTimeout(generateRandomPost, nextDelay);
 }
 
+\n
+// Показати/сховати кнопку "Наверх"
+window.addEventListener('scroll', () => {
+    const scrollBtn = document.getElementById('scrollToTopBtn');
+    if (scrollBtn) {
+        if (window.scrollY > 400) {
+            scrollBtn.classList.add('show');
+        } else {
+            scrollBtn.classList.remove('show');
+        }
+    }
+});
