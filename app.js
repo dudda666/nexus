@@ -1018,9 +1018,10 @@ async function generateRandomPost() {
         fallbackDelay = 15000;
     }
     
-    // Якщо знайшли статтю -> миттєво постимо наступну (1-2 сек затримка для краси логів та щоб браузер не завис)
-    // Якщо немає -> чекаємо 10 сек і беремо іншу категорію
-    const nextDelay = articleFound ? (Math.floor(Math.random() * 1500) + 1000) : fallbackDelay;
+    // Щоб уникати блокувань API (Too Many Requests), робимо паузи між запитами.
+    // Знайшли статтю -> чекаємо близько 30 секунд перед наступним постом (тим паче в UI вказано "кожні 30 секунд")
+    // Помилка або не знайшли -> чекаємо від 15 до 30 секунд, щоб API мало час "перепочити"
+    const nextDelay = articleFound ? (Math.floor(Math.random() * 5000) + 28000) : (fallbackDelay + 5000);
     
     window.generatorTimeout = setTimeout(generateRandomPost, nextDelay);
 }
