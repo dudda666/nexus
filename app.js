@@ -498,7 +498,17 @@ async function loadAppContent() {
                  return;
             }
 
-            let syncedHistory = JSON.parse(localStorage.getItem('botPostedHistory') || '[]');
+            let syncedHistory = [];
+            try {
+                const stored = localStorage.getItem('botPostedHistory');
+                if (stored) {
+                    syncedHistory = JSON.parse(stored);
+                    if (!Array.isArray(syncedHistory)) syncedHistory = [];
+                }
+            } catch (err) {
+                console.warn('localStorage read error:', err);
+                syncedHistory = [];
+            }
             let changedHistory = false;
 
             querySnapshot.forEach((docSnap) => {
@@ -517,12 +527,19 @@ async function loadAppContent() {
             if (changedHistory) {
                 // Залишаємо останні 500-1000 записів щоб не забити пам'ять браузера
                 if (syncedHistory.length > 1000) syncedHistory = syncedHistory.slice(-800);
-                localStorage.setItem('botPostedHistory', JSON.stringify(syncedHistory));
+                try {
+                    localStorage.setItem('botPostedHistory', JSON.stringify(syncedHistory));
+                } catch(err) {
+                    console.warn('localStorage write error:', err);
+                }
             }
 
             setTimeout(() => { if(window.autoTranslateAllPosts) window.autoTranslateAllPosts(); }, 200);
         } catch(e) {
-            postsContainer.innerHTML = '<div style="text-align: center; margin-top: 50px; opacity: 0.5; color: red;">Error loading posts</div>';
+            postsContainer.innerHTML = \`<div style="text-align: center; margin-top: 50px; color: red;">
+                <div style="opacity: 0.5; margin-bottom: 10px;">Error loading posts</div>
+                <div style="font-size: 12px; opacity: 0.8;">\${e.message || e}</div>
+            </div>\`;
             console.error(e);
         }
     }
