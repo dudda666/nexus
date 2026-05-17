@@ -536,10 +536,10 @@ async function loadAppContent() {
 
             setTimeout(() => { if(window.autoTranslateAllPosts) window.autoTranslateAllPosts(); }, 200);
         } catch(e) {
-            postsContainer.innerHTML = \`<div style="text-align: center; margin-top: 50px; color: red;">
+            postsContainer.innerHTML = `<div style="text-align: center; margin-top: 50px; color: red;">
                 <div style="opacity: 0.5; margin-bottom: 10px;">Error loading posts</div>
-                <div style="font-size: 12px; opacity: 0.8;">\${e.message || e}</div>
-            </div>\`;
+                <div style="font-size: 12px; opacity: 0.8;">${e.message || e}</div>
+            </div>`;
             console.error(e);
         }
     }
